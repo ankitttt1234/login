@@ -13,4 +13,15 @@ body {
   font-size: 2rem;
   color: #fff;
   background-color: #000;
+  width: 100%;
 }
+
+
+.h{
+    padding: 1%;
+    text-align: left;
+    border: 2px grey solid;
+    border-color:cornsilk;
+    border-radius: 7px;
+}
+

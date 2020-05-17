@@ -7,6 +7,7 @@ const session = require('express-session');
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const FacebookStrategy = require("passport-facebook");
 const findOrCreate = require('mongoose-findorcreate')
 const app = express();
 
@@ -35,6 +36,7 @@ const userSchema = new mongoose.Schema({
     email: String,
     password: String,
     googleId: String,
+    facebookId: String,
     secret: String
 });
 
@@ -61,13 +63,27 @@ passport.use(new GoogleStrategy({
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
   },
   function(accessToken, refreshToken, profile, cb) {
-  
-    User.findOrCreate({ googleId: profile.id }, function (err, user) {
-      return cb(err, user);
+   
+    User.findOrCreate({ googleId: profile.id,email :profile.emails[0].value}, function (err, user1) {
+      return cb(err, user1);
     });
   }
 ));
  
+
+passport.use(new FacebookStrategy({
+    clientID: process.env.FACEBOOK_APP_ID,
+    clientSecret: process.env.FACEBOOK_APP_SECRET,
+    callbackURL: "http://localhost:3000/auth/facebook/secrets",
+     profileFields: ['id', 'displayName', 'photos', 'email']
+  },
+function(accessToken, refreshToken, profile, cb) {
+    User.findOrCreate({ facebookId: profile.id, email :profile.emails[0].value}, function (err, user) {
+       
+      return cb(err, user);
+    });
+  }
+));
 
 app.get("/",function(req,res){
     res.render("home");
@@ -82,6 +98,7 @@ app.get("/register",function(req,res){
 });
 
 app.get("/secrets",function(req,res){
+    console.log(req);
    User.find({"secret":{$ne:null}}, function(err,found){
        if(err){
            console.log(err);
@@ -132,7 +149,7 @@ app.get("/logout",function(req,res){
 });
 
 app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile'] }));
+  passport.authenticate('google', { scope: ['profile','email'] }));
 
 app.get('/auth/google/secrets', 
   passport.authenticate('google', { failureRedirect: '/login' }),
@@ -140,6 +157,17 @@ app.get('/auth/google/secrets',
     
     res.redirect('/secrets');
   });
+
+app.get('/auth/facebook',
+  passport.authenticate('facebook',{ scope: ['email']}));
+
+app.get('/auth/facebook/secrets',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
+  function(req, res) {
+    
+    res.redirect('/secrets');
+  });
+
 app.get("/submit",function(req,res){
     if(req.isAuthenticated()){
        res.render("submit");
