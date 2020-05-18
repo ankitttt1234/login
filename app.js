@@ -33,11 +33,10 @@ mongoose.connect('mongodb://localhost:27017/userDB', {useNewUrlParser: true, use
 mongoose.set("useCreateIndex", true);
 
 const userSchema = new mongoose.Schema({
-    email: String,
+    username: String,
+    f_email:String,
     password: String,
-    googleId: String,
-    facebookId: String,
-    secret: String
+    secret: []
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -64,7 +63,7 @@ passport.use(new GoogleStrategy({
   },
   function(accessToken, refreshToken, profile, cb) {
    
-    User.findOrCreate({ googleId: profile.id,email :profile.emails[0].value}, function (err, user1) {
+    User.findOrCreate({username :profile.emails[0].value}, function (err, user1) {
       return cb(err, user1);
     });
   }
@@ -78,7 +77,7 @@ passport.use(new FacebookStrategy({
      profileFields: ['id', 'displayName', 'photos', 'email']
   },
 function(accessToken, refreshToken, profile, cb) {
-    User.findOrCreate({ facebookId: profile.id, email :profile.emails[0].value}, function (err, user) {
+    User.findOrCreate({username :profile.emails[0].value}, function (err, user) {
        
       return cb(err, user);
     });
@@ -98,13 +97,16 @@ app.get("/register",function(req,res){
 });
 
 app.get("/secrets",function(req,res){
-    console.log(req);
-   User.find({"secret":{$ne:null}}, function(err,found){
+
+   User.findOne({"username":req.user.username}, function(err,found){
        if(err){
-           console.log(err);
+          
+           res.redirect("/submit");
        } else {
            if(found){
-               res.render("secrets",{usersWithSecrets: found});
+               
+              
+        res.render("secrets",{usersWithSecrets: found.secret});
            }
        }
    });
@@ -179,16 +181,22 @@ app.get("/submit",function(req,res){
 
 app.post("/submit", function(req,res){
     const submittedSecret = req.body.secret;
+    const sender = req.body.secretEmail;
     
-    User.findById(req.user.id,function(err,found){
+    User.findOneAndUpdate({username: sender},{secrets:""},function(err,found){
         if(err){
-            console.log(err);
+            res.render("notFound");
         } else {
-            found.secret += submittedSecret+"\n";
+            if(found ==null){
+                res.render("notFound");
+            }
+            else{
+            found.secret.push(submittedSecret);
             
             found.save(function(){
                 res.redirect("/secrets");
             });
+            }
         }
         
     })
